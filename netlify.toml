@@ -2,6 +2,6 @@
   publish = "public"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/"
+  to = "/hello.html"
   status = 200
