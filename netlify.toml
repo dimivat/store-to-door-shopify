@@ -1,12 +1,7 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm install"
   publish = "public"
   functions = "functions"
-
-[dev]
-  command = "npm run dev"
-  port = 3001
-  publish = "public"
 
 [[redirects]]
   from = "/api/*"
@@ -17,4 +12,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
