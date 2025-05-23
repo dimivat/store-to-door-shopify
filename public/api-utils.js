@@ -43,6 +43,15 @@ async function mockApiResponse(url) {
   await new Promise(resolve => setTimeout(resolve, 300));
   
   // Parse the URL to determine what data to return
+  if (url.includes('/api/orders/date/')) {
+    const date = url.split('/').pop();
+    return createMockResponse({
+      date,
+      totalOrders: STATIC_DATA.orders[date]?.orders.length || 0,
+      orders: STATIC_DATA.orders[date]?.orders || []
+    });
+  }
+  
   if (url.includes('/api/orders/delivery-date/')) {
     const date = url.split('/').pop();
     return createMockResponse(STATIC_DATA.orders[date] || { date, totalOrders: 0, orders: [] });
