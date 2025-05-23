@@ -51,6 +51,39 @@ main {
   margin-bottom: 30px;
 }
 
+/* Tab Navigation */
+.tab-navigation {
+  margin-bottom: 30px;
+}
+
+.tabs {
+  display: flex;
+  background-color: var(--light-gray);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 15px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.tab:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.tab.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-bottom-color: var(--primary-hover);
+}
+
 /* Control Panel */
 .control-panel {
   display: flex;
@@ -354,6 +387,463 @@ main {
 .cache-info-content span {
   font-weight: 500;
   color: var(--secondary-color);
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid var(--medium-gray);
+  margin-bottom: 30px;
+}
+
+.tab-button {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--dark-gray);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s;
+}
+
+.tab-button:hover {
+  color: var(--primary-color);
+}
+
+.tab-button.active {
+  color: var(--primary-color);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--primary-color);
+}
+
+.tab-content {
+  position: relative;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* Calendar View Styles */
+.calendar-container {
+  padding: 20px 0;
+}
+
+.calendar-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.calendar-header h2 {
+  color: var(--primary-color);
+  margin-bottom: 5px;
+}
+
+.date-picker-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+#calendar-date-picker {
+  width: 300px;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid var(--medium-gray);
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.selected-date-info {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: var(--light-gray);
+  border-radius: 4px;
+}
+
+.selected-date-info h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: var(--primary-color);
+  font-size: 20px;
+  border-bottom: 1px solid var(--medium-gray);
+  padding-bottom: 10px;
+}
+
+.date-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.orders-table-container {
+  overflow-x: auto;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.orders-table th {
+  background-color: var(--light-gray);
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 500;
+  color: var(--dark-gray);
+  border-bottom: 2px solid var(--medium-gray);
+}
+
+.orders-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--medium-gray);
+}
+
+.orders-table tbody tr:hover {
+  background-color: var(--light-gray);
+}
+
+.view-order-btn {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.view-order-btn:hover {
+  background-color: #4a5aa9;
+}
+
+/* Order Details Drawer */
+.order-details-drawer {
+  position: fixed;
+  top: 0;
+  right: -500px; /* Start off-screen */
+  width: 500px;
+  height: 100vh;
+  background-color: white;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: right 0.3s ease-in-out;
+  overflow-y: auto;
+}
+
+.order-details-drawer.open {
+  right: 0;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.drawer-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.close-drawer {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.drawer-content {
+  padding: 20px;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: none;
+}
+
+.overlay.active {
+  display: block;
+}
+
+/* Order Details Sections */
+.order-section {
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--medium-gray);
+  padding-bottom: 20px;
+}
+
+.order-section:last-child {
+  border-bottom: none;
+}
+
+.order-section h3 {
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  font-size: 18px;
+  position: relative;
+}
+
+.order-section h3::after {
+  content: '';
+  display: block;
+  width: 30px;
+  height: 3px;
+  background-color: var(--primary-color);
+  margin-top: 5px;
+}
+
+.order-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.order-info-item {
+  margin-bottom: 10px;
+}
+
+.order-info-label {
+  font-weight: 500;
+  color: var(--dark-gray);
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.order-info-value {
+  font-size: 16px;
+}
+
+.order-items-list {
+  list-style: none;
+}
+
+.order-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--light-gray);
+  display: flex;
+  justify-content: space-between;
+}
+
+.order-item:last-child {
+  border-bottom: none;
+}
+
+.item-details {
+  flex: 1;
+}
+
+.item-title {
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.item-variant {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 3px;
+}
+
+.item-sku {
+  font-size: 12px;
+  color: #888;
+}
+
+.item-price {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.item-discount {
+  font-size: 12px;
+  color: var(--danger-color);
+  margin-top: 3px;
+}
+
+.item-vendor, .item-product-id, .item-variant-id {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.address-block {
+  background-color: var(--light-gray);
+  padding: 15px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+/* Shipping Lines */
+.shipping-lines-container {
+  margin-top: 10px;
+}
+
+.shipping-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.shipping-line:last-child {
+  border-bottom: none;
+}
+
+/* Discount Codes */
+.discount-codes-container {
+  margin-top: 10px;
+}
+
+.discount-code {
+  background-color: #fff3cd;
+  border-left: 3px solid var(--warning-color);
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+.discount-code-title {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.discount-amount {
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
+.discount-type {
+  font-size: 12px;
+  color: #666;
+  margin-top: 3px;
+}
+
+/* Note Attributes */
+.note-attributes-container {
+  margin-top: 10px;
+}
+
+.note-attribute {
+  display: flex;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.note-attribute:last-child {
+  border-bottom: none;
+}
+
+.note-attribute-name {
+  font-weight: 500;
+  margin-right: 10px;
+  min-width: 120px;
+}
+
+/* Raw JSON */
+.technical-details {
+  margin-top: 15px;
+}
+
+.raw-json-container {
+  margin-top: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+  border: 1px solid var(--medium-gray);
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.raw-json {
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-paid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-refunded {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.status-fulfilled {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-unfulfilled {
+  background-color: #e2e3e5;
+  color: #383d41;
 }
 
 /* Footer */

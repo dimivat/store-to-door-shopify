@@ -205,27 +205,134 @@ app.get('/api/orders', async (req, res) => {
 
 // API endpoint to get cache metadata
 app.get('/api/cache/info', (req, res) => {
-  try {
-    const metadata = cache.getCacheMetadata();
-    res.json(metadata);
-  } catch (error) {
-    console.error('Error getting cache info:', error);
-    res.status(500).json({ error: 'Failed to get cache info' });
+  const cacheInfo = cache.getCacheMetadata();
+  res.json(cacheInfo);
+});
+
+// API endpoint to clear cache
+app.post('/api/cache/clear', (req, res) => {
+  const success = cache.clearCache();
+  
+  if (success) {
+    res.json({ success: true, message: 'Cache cleared successfully' });
+  } else {
+    res.status(500).json({ success: false, error: 'Failed to clear cache' });
   }
 });
 
-// API endpoint to clear the cache
-app.post('/api/cache/clear', (req, res) => {
+// API endpoint to get detailed order information for a specific date
+app.get('/api/orders/date/:date', async (req, res) => {
   try {
-    const success = cache.clearCache();
-    if (success) {
-      res.json({ message: 'Cache cleared successfully' });
-    } else {
-      res.status(500).json({ error: 'Failed to clear cache' });
+    const { date } = req.params;
+    const useCache = req.query.refresh !== 'true';
+    
+    console.log(`Fetching detailed orders for date: ${date}, useCache: ${useCache}`);
+    
+    // Check cache first if enabled
+    if (useCache) {
+      const cachedOrders = cache.getCachedOrdersForDate(`${date}_full`);
+      if (cachedOrders) {
+        console.log(`Using cached orders for ${date}`);
+        return res.json({
+          date,
+          orders: cachedOrders.orders || [],
+          fromCache: true
+        });
+      }
     }
+    
+    // If not in cache or cache disabled, fetch from Shopify API
+    const startTime = `${date}T00:00:00+10:00`;
+    const endTime = `${date}T23:59:59+10:00`;
+    
+    console.log(`Fetching orders from Shopify API for date: ${date}`);
+    
+    const response = await axios({
+      url: `https://${SHOP_NAME}.myshopify.com/admin/api/${API_VERSION}/orders.json`,
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        created_at_min: startTime,
+        created_at_max: endTime,
+        status: 'any',
+        limit: 250 // Get as many orders as possible
+      }
+    });
+    
+    const orders = response.data.orders;
+    
+    // Format the order data to include all relevant information
+    const formattedOrders = orders.map(order => ({
+      id: order.id,
+      name: order.name,
+      createdAt: order.created_at,
+      processedAt: order.processed_at,
+      updatedAt: order.updated_at,
+      cancelledAt: order.cancelled_at,
+      cancelReason: order.cancel_reason,
+      financialStatus: order.financial_status,
+      fulfillmentStatus: order.fulfillment_status,
+      currency: order.currency,
+      subtotalPrice: order.subtotal_price,
+      totalDiscounts: order.total_discounts,
+      totalTax: order.total_tax,
+      totalPrice: order.total_price,
+      totalItems: order.line_items.length,
+      customer: order.customer ? {
+        id: order.customer.id,
+        firstName: order.customer.first_name,
+        lastName: order.customer.last_name,
+        email: order.customer.email,
+        phone: order.customer.phone,
+        ordersCount: order.customer.orders_count,
+        totalSpent: order.customer.total_spent
+      } : null,
+      shippingAddress: order.shipping_address,
+      billingAddress: order.billing_address,
+      lineItems: order.line_items.map(item => ({
+        id: item.id,
+        title: item.title,
+        variant_title: item.variant_title,
+        quantity: item.quantity,
+        price: item.price,
+        sku: item.sku,
+        vendor: item.vendor,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        taxable: item.taxable,
+        total_discount: item.total_discount
+      })),
+      shippingLines: order.shipping_lines,
+      tags: order.tags,
+      note: order.note,
+      noteAttributes: order.note_attributes,
+      discountCodes: order.discount_codes
+    }));
+    
+    // Save to cache for future use
+    const cacheKey = `${date}_full`;
+    cache.saveOrdersToCache(cacheKey, {
+      count: formattedOrders.length,
+      hasMaxLimit: formattedOrders.length >= 250,
+      orders: formattedOrders,
+      fetchedAt: new Date().toISOString()
+    });
+    
+    return res.json({
+      date,
+      orders: formattedOrders,
+      fromCache: false
+    });
   } catch (error) {
-    console.error('Error clearing cache:', error);
-    res.status(500).json({ error: 'Failed to clear cache' });
+    console.error('Error fetching detailed orders:', error.message);
+    if (error.response) {
+      console.error('Response Status:', error.response.status);
+      console.error('Response Data:', error.response.data);
+    }
+    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 
