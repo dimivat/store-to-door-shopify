@@ -60,13 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load orders for a specific date
   async function loadOrdersForDate(date) {
     try {
-      // Show loading state
-      selectedDateHeading.textContent = `Loading orders for ${formatDateForDisplay(date)}...`;
-      selectedDateCount.textContent = '';
-      selectedDateTotal.textContent = '$0.00';
-      selectedDateAvg.textContent = '$0.00';
-      selectedDateItems.textContent = '0';
-      ordersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+      setLoading(true);
       
       // Check if we already have this date in cache
       if (cachedDates[date]) {
@@ -74,7 +68,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      // Fetch orders from the server
+      // Check if we're in production (Netlify)
+      const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+      
+      if (isProduction) {
+        // In production, use static data directly
+        console.log('Using static data for date:', date);
+        
+        // Get orders from static data if available
+        const staticOrders = STATIC_DATA.orders[date]?.orders || [];
+        
+        // Cache the results
+        cachedDates[date] = staticOrders;
+        
+        // Display the orders
+        displayOrdersForDate(date, staticOrders);
+        return;
+      }
+      
+      // In development, fetch from the server
       const response = await fetchData(formatApiUrl(`/api/orders/date/${date}`));
       
       if (!response.ok) {
@@ -88,6 +100,36 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Display the orders
       displayOrdersForDate(date, data.orders);
+      
+    } catch (error) {
+      console.error(`Error fetching orders for ${date}:`, error);
+      
+      // Fallback to static data if available
+      if (STATIC_DATA && STATIC_DATA.orders && STATIC_DATA.orders[date]) {
+        console.log('Falling back to static data for date:', date);
+        const staticOrders = STATIC_DATA.orders[date].orders || [];
+        cachedDates[date] = staticOrders;
+        displayOrdersForDate(date, staticOrders);
+      } else {
+        showAlert('error', `Error fetching orders: ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  // Load orders for a specific date
+  async function loadOrdersForDate(date) {
+    try {
+      // Show loading state
+      selectedDateHeading.textContent = `Loading orders for ${formatDateForDisplay(date)}...`;
+      selectedDateCount.textContent = '';
+      selectedDateTotal.textContent = '$0.00';
+      selectedDateAvg.textContent = '$0.00';
+      selectedDateItems.textContent = '0';
+      ordersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+      
+      await fetchOrdersForDate(date);
       
     } catch (error) {
       console.error('Error loading orders:', error);
