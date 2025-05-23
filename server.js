@@ -220,6 +220,326 @@ app.post('/api/cache/clear', (req, res) => {
   }
 });
 
+// API endpoint to get orders by delivery date (from note attributes)
+app.get('/api/orders/delivery-date/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const useCache = req.query.refresh !== 'true';
+    
+    console.log(`Fetching orders with delivery date ${date}, useCache: ${useCache}`);
+    
+    // Check cache first if enabled
+    const cacheKey = `delivery_${date}`;
+    if (useCache) {
+      const cachedData = cache.getCachedOrdersForDate(cacheKey);
+      if (cachedData) {
+        console.log(`Using cached delivery orders for ${date}`);
+        return res.json({
+          date,
+          orders: cachedData.orders || [],
+          fromCache: true
+        });
+      }
+    }
+    
+    // We need to fetch all orders and filter by note attributes
+    // First, get orders from the last 30 days to search through
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Use Sydney timezone for the date range
+    const startTime = thirtyDaysAgo.toISOString();
+    
+    console.log(`Fetching orders from Shopify API since: ${startTime}`);
+    
+    const response = await axios({
+      url: `https://${SHOP_NAME}.myshopify.com/admin/api/${API_VERSION}/orders.json`,
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        created_at_min: startTime,
+        status: 'any',
+        limit: 250
+      }
+    });
+    
+    // Filter orders by delivery date in note attributes
+    const allOrders = response.data.orders;
+    console.log(`Filtering ${allOrders.length} orders for delivery date: ${date}`);
+    
+    // Log all delivery dates found in orders
+    console.log('All delivery dates in orders:');
+    allOrders.forEach(order => {
+      if (order.note_attributes && order.note_attributes.length) {
+        const deliveryAttr = order.note_attributes.find(attr => 
+          attr.name === 'Delivery-Date' || attr.name === 'Delivery Date' || 
+          attr.name === 'delivery_date' || attr.name === 'delivery-date'
+        );
+        if (deliveryAttr) {
+          console.log(`Order ${order.name}: ${deliveryAttr.value}`);
+        }
+      }
+    });
+    
+    const deliveryOrders = allOrders.filter(order => {
+      if (!order.note_attributes || !order.note_attributes.length) return false;
+      
+      // Look for Delivery-Date attribute
+      const deliveryAttr = order.note_attributes.find(attr => 
+        attr.name === 'Delivery-Date' || attr.name === 'Delivery Date' || 
+        attr.name === 'delivery_date' || attr.name === 'delivery-date'
+      );
+      
+      if (!deliveryAttr) return false;
+      
+      // Log the delivery date for debugging
+      console.log(`Checking order ${order.name} with delivery date: ${deliveryAttr.value} against target: ${date}`);
+      
+      // Parse the delivery date value and check if it matches our target date
+      let orderDeliveryDate = deliveryAttr.value;
+      
+      // Try to standardize the date format
+      try {
+        // If it's already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(orderDeliveryDate)) {
+          return orderDeliveryDate === date;
+        }
+        
+        // If it's in DD/MM/YYYY format
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(orderDeliveryDate)) {
+          const parts = orderDeliveryDate.split('/');
+          const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          return formattedDate === date;
+        }
+        
+        // If it's a full date string, convert to YYYY-MM-DD in Sydney timezone
+        try {
+          // Create a date object with the Sydney timezone offset
+          let sydneyDate;
+          
+          // Add logging for the specific order
+          if (order.name === '#36908') {
+            console.log(`Processing order #36908 with delivery date: ${orderDeliveryDate}`);
+          }
+          
+          // Handle different date formats
+          if (orderDeliveryDate.includes('/')) {
+            const parts = orderDeliveryDate.split('/');
+            
+            // Check if it's YYYY/MM/DD format (first part has 4 digits)
+            if (parts[0].length === 4) {
+              // It's YYYY/MM/DD format
+              const year = parts[0];
+              const month = parts[1];
+              const day = parts[2];
+              
+              // Create date string in ISO format: YYYY-MM-DDT00:00:00+10:00
+              const isoDateString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00+10:00`;
+              sydneyDate = new Date(isoDateString);
+              
+              // Also check if the delivery date matches the requested date directly
+              const formattedOrderDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              
+              // Log the comparison for all dates
+              console.log(`YYYY/MM/DD format: ${orderDeliveryDate} formatted to ${formattedOrderDate}, target: ${date}`);
+              
+              if (formattedOrderDate === date) {
+                console.log(`Direct match for YYYY/MM/DD format: ${orderDeliveryDate} matches ${date}`);
+                return true;
+              }
+              
+              // Try to match the date components directly
+              const targetParts = date.split('-');
+              if (targetParts.length === 3) {
+                const targetYear = targetParts[0];
+                const targetMonth = targetParts[1];
+                const targetDay = targetParts[2];
+                
+                if (year === targetYear && 
+                    month.padStart(2, '0') === targetMonth && 
+                    day.padStart(2, '0') === targetDay) {
+                  console.log(`Component match for YYYY/MM/DD format: ${orderDeliveryDate} matches ${date}`);
+                  return true;
+                }
+              }
+            } else {
+              // Assume DD/MM/YYYY format (Australian format)
+              const day = parts[0];
+              const month = parts[1];
+              const year = parts[2];
+              
+              // Create date string in ISO format: YYYY-MM-DDT00:00:00+10:00
+              const isoDateString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00+10:00`;
+              sydneyDate = new Date(isoDateString);
+              
+              // Also check if the delivery date matches the requested date directly
+              const formattedOrderDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              
+              // Log the comparison for all dates
+              console.log(`DD/MM/YYYY format: ${orderDeliveryDate} formatted to ${formattedOrderDate}, target: ${date}`);
+              
+              if (formattedOrderDate === date) {
+                console.log(`Direct match for DD/MM/YYYY format: ${orderDeliveryDate} matches ${date}`);
+                return true;
+              }
+              
+              // Try to match the date components directly
+              const targetParts = date.split('-');
+              if (targetParts.length === 3) {
+                const targetYear = targetParts[0];
+                const targetMonth = targetParts[1];
+                const targetDay = targetParts[2];
+                
+                if (year === targetYear && 
+                    month.padStart(2, '0') === targetMonth && 
+                    day.padStart(2, '0') === targetDay) {
+                  console.log(`Component match for DD/MM/YYYY format: ${orderDeliveryDate} matches ${date}`);
+                  return true;
+                }
+              }
+            }
+            
+            if (order.name === '#36908') {
+              console.log(`Order #36908: Processing YYYY/MM/DD format`);
+              console.log(`Order #36908: Delivery date: ${orderDeliveryDate}`);
+              console.log(`Order #36908: Formatted date: ${formattedOrderDate}`);
+              console.log(`Order #36908: Target date: ${date}`);
+              console.log(`Order #36908: Direct match: ${formattedOrderDate === date}`);
+              
+              try {
+                console.log(`Order #36908: Date object: ${sydneyDate.toISOString()}`);
+              } catch (e) {
+                console.log(`Order #36908: Invalid date object`);
+              }
+            }
+          } else if (orderDeliveryDate.includes('-')) {
+            // Handle YYYY-MM-DD format
+            const isoDateString = `${orderDeliveryDate}T00:00:00+10:00`;
+            sydneyDate = new Date(isoDateString);
+            
+            if (order.name === '#36908') {
+              console.log(`Order #36908: Processing YYYY-MM-DD format`);
+              console.log(`Order #36908: Delivery date: ${orderDeliveryDate}`);
+              console.log(`Order #36908: ISO date: ${isoDateString}`);
+            }
+          } else {
+            // Try to parse as a regular date string
+            sydneyDate = new Date(orderDeliveryDate);
+            
+            if (order.name === '#36908') {
+              console.log(`Order #36908: Processing regular date format`);
+              console.log(`Order #36908: Delivery date: ${orderDeliveryDate}`);
+            }
+          }
+          
+          if (!isNaN(sydneyDate.getTime())) {
+            // Convert the target date to a Date object in Sydney timezone
+            const targetDate = new Date(`${date}T00:00:00+10:00`);
+            
+            // Compare the dates by setting both to midnight in Sydney time
+            const sydneyYear = sydneyDate.getFullYear();
+            const sydneyMonth = sydneyDate.getMonth();
+            const sydneyDay = sydneyDate.getDate();
+            
+            const targetYear = targetDate.getFullYear();
+            const targetMonth = targetDate.getMonth();
+            const targetDay = targetDate.getDate();
+            
+            // Add detailed logging for order #36908
+            if (order.name === '#36908') {
+              console.log(`Order #36908: Comparing dates:`);
+              console.log(`  Order date: ${sydneyYear}-${sydneyMonth+1}-${sydneyDay}`);
+              console.log(`  Target date: ${targetYear}-${targetMonth+1}-${targetDay}`);
+              console.log(`  Searching for date: ${date}`);
+              console.log(`  Match: ${sydneyYear === targetYear && sydneyMonth === targetMonth && sydneyDay === targetDay}`);
+            }
+            
+            // Compare year, month, and day
+            return sydneyYear === targetYear && 
+                   sydneyMonth === targetMonth && 
+                   sydneyDay === targetDay;
+          }
+        } catch (error) {
+          console.error(`Error comparing dates: ${orderDeliveryDate} with ${date}`, error);
+        }
+      } catch (e) {
+        console.error(`Error parsing delivery date: ${orderDeliveryDate}`, e);
+      }
+      
+      return false;
+    });
+    
+    console.log(`Found ${deliveryOrders.length} orders with delivery date: ${date}`);
+    
+    // Process and format the orders
+    const orders = deliveryOrders.map(order => ({
+      id: order.id,
+      name: order.name,
+      createdAt: order.created_at,
+      processedAt: order.processed_at,
+      updatedAt: order.updated_at,
+      cancelledAt: order.cancelled_at,
+      cancelReason: order.cancel_reason,
+      currency: order.currency,
+      totalPrice: order.total_price,
+      subtotalPrice: order.subtotal_price,
+      totalTax: order.total_tax,
+      totalDiscounts: order.total_discounts,
+      financialStatus: order.financial_status,
+      fulfillmentStatus: order.fulfillment_status,
+      customer: order.customer ? {
+        id: order.customer.id,
+        email: order.customer.email,
+        phone: order.customer.phone,
+        firstName: order.customer.first_name,
+        lastName: order.customer.last_name,
+        ordersCount: order.customer.orders_count,
+        totalSpent: order.customer.total_spent
+      } : null,
+      shippingAddress: order.shipping_address,
+      billingAddress: order.billing_address,
+      lineItems: order.line_items.map(item => ({
+        id: item.id,
+        title: item.title,
+        variant_title: item.variant_title,
+        quantity: item.quantity,
+        price: item.price,
+        sku: item.sku,
+        vendor: item.vendor,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        total_discount: item.total_discount
+      })),
+      shippingLines: order.shipping_lines,
+      discountCodes: order.discount_codes,
+      noteAttributes: order.note_attributes,
+      deliveryDate: order.note_attributes.find(attr => 
+        attr.name === 'Delivery-Date' || attr.name === 'Delivery Date' || 
+        attr.name === 'delivery_date' || attr.name === 'delivery-date'
+      )?.value,
+      note: order.note,
+      tags: order.tags
+    }));
+    
+    // Cache the results
+    cache.saveOrdersToCache(cacheKey, { orders, count: orders.length, timestamp: new Date().toISOString() });
+    
+    // Return the orders
+    res.json({
+      date,
+      orders,
+      fromCache: false
+    });
+    
+  } catch (error) {
+    console.error('Error fetching delivery orders:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // API endpoint to get detailed order information for a specific date
 app.get('/api/orders/date/:date', async (req, res) => {
   try {

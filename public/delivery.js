@@ -1,12 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
-  const calendarDatePicker = document.getElementById('calendar-date-picker');
-  const selectedDateHeading = document.getElementById('selected-date-heading');
-  const selectedDateCount = document.getElementById('selected-date-count');
-  const selectedDateTotal = document.getElementById('selected-date-total');
-  const selectedDateAvg = document.getElementById('selected-date-avg');
-  const selectedDateItems = document.getElementById('selected-date-items');
-  const ordersTableBody = document.getElementById('orders-table-body');
+  const deliveryDatePicker = document.getElementById('delivery-date-picker');
+  const deliveryDateHeading = document.getElementById('delivery-date-heading');
+  const deliveryDateCount = document.getElementById('delivery-date-count');
+  const deliveryDateTotal = document.getElementById('delivery-date-total');
+  const deliveryDateVendors = document.getElementById('delivery-date-vendors');
+  const deliveryDateItems = document.getElementById('delivery-date-items');
+  const vendorItemsBody = document.getElementById('vendor-items-body');
+  const deliveryOrdersBody = document.getElementById('delivery-orders-body');
   const orderDetailsDrawer = document.getElementById('order-details-drawer');
   const drawerOrderNumber = document.getElementById('drawer-order-number');
   const drawerContent = document.getElementById('drawer-content');
@@ -17,120 +18,164 @@ document.addEventListener('DOMContentLoaded', () => {
   let cachedDates = {};
   let currentOrders = [];
   
-  // Initialize Flatpickr calendar
-  const calendar = flatpickr(calendarDatePicker, {
+  // Initialize Flatpickr calendar for delivery date
+  const deliveryCalendar = flatpickr(deliveryDatePicker, {
     dateFormat: 'Y-m-d',
-    maxDate: 'today',
+    maxDate: new Date().fp_incr(30), // Allow selecting dates up to 30 days in the future
+    minDate: new Date().fp_incr(-30), // Allow selecting dates up to 30 days in the past
     disableMobile: true,
     // Set timezone to Sydney/Australia
     timezone: 'Australia/Sydney',
+    // Use UTC+10 for Sydney timezone
+    utc: true,
+    // Disable Sunday selection since there are no orders on Sunday
+    disable: [
+      function(date) {
+        // Return true to disable Sunday (0 is Sunday in JavaScript)
+        return date.getDay() === 0;
+      }
+    ],
     onChange: function(selectedDates, dateStr) {
       if (selectedDates.length > 0) {
-        loadOrdersForDate(dateStr);
+        // Make sure we're using the date string in YYYY-MM-DD format
+        loadOrdersForDeliveryDate(dateStr);
       }
     }
   });
   
-  // Tab navigation
-  document.addEventListener('click', (e) => {
-    // Check if the clicked element is a tab
-    if (e.target.classList.contains('tab')) {
-      const tabName = e.target.getAttribute('data-tab');
-      
-      // Update active tab
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(t => t.classList.remove('active'));
-      e.target.classList.add('active');
-      
-      // Update active tab pane
-      const tabPanes = document.querySelectorAll('.tab-pane');
-      tabPanes.forEach(pane => pane.classList.remove('active'));
-      
-      // Show the correct tab content
-      if (tabName === 'order-retrieval') {
-        document.getElementById('retrieval-tab').classList.add('active');
-      } else if (tabName === 'calendar-view') {
-        document.getElementById('calendar-tab').classList.add('active');
-      } else if (tabName === 'delivery-date') {
-        document.getElementById('delivery-tab').classList.add('active');
-      }
-    }
-  });
+  // Tab navigation is handled in calendar.js
   
-  // Load orders for a specific date
-  async function loadOrdersForDate(date) {
+  // Load orders for a specific delivery date
+  async function loadOrdersForDeliveryDate(date) {
     try {
       // Show loading state
-      selectedDateHeading.textContent = `Loading orders for ${formatDateForDisplay(date)}...`;
-      selectedDateCount.textContent = '';
-      selectedDateTotal.textContent = '$0.00';
-      selectedDateAvg.textContent = '$0.00';
-      selectedDateItems.textContent = '0';
-      ordersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+      deliveryDateHeading.textContent = `Loading orders for delivery on ${formatDateForDisplay(date)}...`;
+      deliveryDateCount.textContent = '0';
+      deliveryDateTotal.textContent = '$0.00';
+      deliveryDateVendors.textContent = '0';
+      deliveryDateItems.textContent = '0';
+      vendorItemsBody.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
+      deliveryOrdersBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
       
-      // Check if we already have this date in cache
+      // Check if we already have this date cached
       if (cachedDates[date]) {
-        displayOrdersForDate(date, cachedDates[date]);
+        displayOrdersForDeliveryDate(date, cachedDates[date]);
         return;
       }
       
       // Fetch orders from the server
-      const response = await fetch(`/api/orders/date/${date}`);
+      const response = await fetch(`/api/orders/delivery-date/${date}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch orders: ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('Server response:', data);
       
       // Cache the results
-      cachedDates[date] = data.orders;
-      
-      // Display the orders
-      displayOrdersForDate(date, data.orders);
+      if (data && data.orders) {
+        cachedDates[date] = data.orders;
+        
+        // Display the orders
+        displayOrdersForDeliveryDate(date, data.orders);
+      } else {
+        console.error('Invalid server response format:', data);
+        throw new Error('Invalid server response format');
+      }
       
     } catch (error) {
-      console.error('Error loading orders:', error);
-      selectedDateHeading.textContent = `Error loading orders for ${formatDateForDisplay(date)}`;
-      selectedDateCount.textContent = 'Please try again';
-      ordersTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+      console.error('Error loading delivery orders:', error);
+      deliveryDateHeading.textContent = `Error loading orders for delivery on ${formatDateForDisplay(date)}`;
+      vendorItemsBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+      deliveryOrdersBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
     }
   }
   
-  // Display orders for the selected date
-  function displayOrdersForDate(date, orders) {
+  // Display orders for the selected delivery date
+  function displayOrdersForDeliveryDate(date, orders) {
+    console.log(`Displaying orders for date: ${date}`);
+    console.log(`Number of orders: ${orders ? orders.length : 0}`);
+    console.log('Orders:', orders);
+    
     // Format the date for display
     const formattedDate = formatDateForDisplay(date);
     
     // Update the heading
-    selectedDateHeading.textContent = formattedDate;
+    deliveryDateHeading.textContent = formattedDate;
+    
+    // Check if we have orders
+    if (!orders || orders.length === 0) {
+      deliveryDateCount.textContent = '0';
+      deliveryDateTotal.textContent = '$0.00';
+      deliveryDateVendors.textContent = '0';
+      deliveryDateItems.textContent = '0';
+      vendorItemsBody.innerHTML = '<tr><td colspan="5" class="text-center">No orders for delivery on this date</td></tr>';
+      deliveryOrdersBody.innerHTML = '<tr><td colspan="7" class="text-center">No orders for delivery on this date</td></tr>';
+      return;
+    }
     
     // Calculate summary statistics
     const orderCount = orders.length;
     let totalValue = 0;
     let totalItems = 0;
     
+    // Group items by vendor
+    const vendorItems = {};
+    const itemOrderCounts = {};
+    
     orders.forEach(order => {
       totalValue += parseFloat(order.totalPrice || 0);
-      totalItems += order.lineItems.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+      
+      // Process line items
+      order.lineItems.forEach(item => {
+        const quantity = parseInt(item.quantity) || 0;
+        totalItems += quantity;
+        
+        const vendor = item.vendor || 'Unknown Vendor';
+        const itemKey = `${vendor}|${item.title}|${item.sku || 'no-sku'}`;
+        
+        // Initialize vendor if not exists
+        if (!vendorItems[vendor]) {
+          vendorItems[vendor] = {};
+        }
+        
+        // Initialize item if not exists
+        if (!vendorItems[vendor][itemKey]) {
+          vendorItems[vendor][itemKey] = {
+            title: item.title,
+            sku: item.sku || 'N/A',
+            quantity: 0,
+            orders: new Set()
+          };
+        }
+        
+        // Add quantity and order
+        vendorItems[vendor][itemKey].quantity += quantity;
+        vendorItems[vendor][itemKey].orders.add(order.name);
+      });
     });
     
-    const avgOrderValue = orderCount > 0 ? totalValue / orderCount : 0;
+    // Count unique vendors
+    const vendorCount = Object.keys(vendorItems).length;
     
     // Update summary information
-    document.getElementById('selected-date-count').textContent = orderCount;
-    document.getElementById('selected-date-total').textContent = formatCurrency(totalValue, orders.length > 0 ? orders[0].currency : 'USD');
-    document.getElementById('selected-date-avg').textContent = formatCurrency(avgOrderValue, orders.length > 0 ? orders[0].currency : 'USD');
-    document.getElementById('selected-date-items').textContent = totalItems;
+    deliveryDateCount.textContent = orderCount;
+    deliveryDateTotal.textContent = formatCurrency(totalValue, orders.length > 0 ? orders[0].currency : 'USD');
+    deliveryDateVendors.textContent = vendorCount;
+    deliveryDateItems.textContent = totalItems;
     
-    // Clear the table body
-    ordersTableBody.innerHTML = '';
+    // Generate vendor items table
+    generateVendorItemsTable(vendorItems);
+    
+    // Clear the orders table body
+    deliveryOrdersBody.innerHTML = '';
     
     // If no orders, show a message
     if (orders.length === 0) {
       const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="7" class="no-orders">No orders for this date</td>`;
-      ordersTableBody.appendChild(row);
+      row.innerHTML = `<td colspan="7" class="no-orders">No orders for delivery on this date</td>`;
+      deliveryOrdersBody.appendChild(row);
       return;
     }
     
@@ -147,8 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `${customer.firstName} ${customer.lastName}`
         : 'Guest Customer';
       
-      // Format the time
-      const time = formatTime(order.createdAt);
+      // Format the delivery date
+      const deliveryDateFormatted = formatDeliveryDate(order.deliveryDate);
       
       // Format the status badges
       const financialStatus = `<span class="status-badge status-${order.financialStatus}">${order.financialStatus || 'unknown'}</span>`;
@@ -158,8 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Set the row HTML
       row.innerHTML = `
         <td>${order.name}</td>
-        <td>${time}</td>
         <td>${customerName}</td>
+        <td>${deliveryDateFormatted}</td>
         <td>${status}</td>
         <td>${order.lineItems.length}</td>
         <td>${formatCurrency(order.totalPrice, order.currency)}</td>
@@ -167,12 +212,60 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       
       // Add the row to the table
-      ordersTableBody.appendChild(row);
+      deliveryOrdersBody.appendChild(row);
       
       // Add event listener to the view button
       const viewBtn = row.querySelector('.view-order-btn');
       viewBtn.addEventListener('click', () => {
         openOrderDetails(order);
+      });
+    });
+  }
+  
+  // Generate vendor items table
+  function generateVendorItemsTable(vendorItems) {
+    // Clear the table
+    vendorItemsBody.innerHTML = '';
+    
+    // If no vendors, show a message
+    if (Object.keys(vendorItems).length === 0) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="5" class="text-center">No items found</td>`;
+      vendorItemsBody.appendChild(row);
+      return;
+    }
+    
+    // Sort vendors alphabetically
+    const sortedVendors = Object.keys(vendorItems).sort();
+    
+    // Add each vendor and their items
+    sortedVendors.forEach(vendor => {
+      // Add vendor header row
+      const vendorRow = document.createElement('tr');
+      vendorRow.classList.add('vendor-header');
+      vendorRow.innerHTML = `
+        <td colspan="5"><strong>${vendor}</strong></td>
+      `;
+      vendorItemsBody.appendChild(vendorRow);
+      
+      // Get all items for this vendor
+      const items = vendorItems[vendor];
+      const itemKeys = Object.keys(items).sort();
+      
+      // Add each item
+      itemKeys.forEach(itemKey => {
+        const item = items[itemKey];
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td></td>
+          <td>${item.title}</td>
+          <td>${item.sku}</td>
+          <td class="quantity-cell">${item.quantity}</td>
+          <td class="orders-cell">${item.orders.size}</td>
+        `;
+        
+        vendorItemsBody.appendChild(row);
       });
     });
   }
@@ -225,6 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const processedAt = order.processedAt ? formatDateTimeForDisplay(order.processedAt) : 'N/A';
     const updatedAt = order.updatedAt ? formatDateTimeForDisplay(order.updatedAt) : 'N/A';
     const cancelledAt = order.cancelledAt ? formatDateTimeForDisplay(order.cancelledAt) : 'N/A';
+    const deliveryDate = formatDeliveryDate(order.deliveryDate);
     
     // Format customer
     const customer = order.customer || {};
@@ -306,6 +400,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="order-info-item">
             <div class="order-info-label">Last Updated</div>
             <div class="order-info-value">${updatedAt}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-info-label">Delivery Date</div>
+            <div class="order-info-value">${deliveryDate}</div>
           </div>
           ${order.cancelledAt ? `
             <div class="order-info-item">
@@ -495,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Helper function to format currency
   function formatCurrency(amount, currency = 'USD') {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-AU', {
       style: 'currency',
       currency: currency || 'USD'
     }).format(amount);
@@ -503,7 +601,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Helper function to format date for display using Sydney timezone
   function formatDateForDisplay(dateString) {
-    const date = new Date(dateString);
+    // Create date in Sydney timezone
+    const sydneyDate = new Date(dateString + 'T00:00:00+10:00');
     const options = { 
       weekday: 'long',
       year: 'numeric', 
@@ -512,12 +611,18 @@ document.addEventListener('DOMContentLoaded', () => {
       timeZone: 'Australia/Sydney'
     };
     
-    return date.toLocaleDateString('en-AU', options);
+    return sydneyDate.toLocaleDateString('en-AU', options);
   }
   
   // Helper function to format date and time for display using Sydney timezone
   function formatDateTimeForDisplay(dateString) {
-    const date = new Date(dateString);
+    // If the dateString doesn't have a time component, add one
+    let fullDateString = dateString;
+    if (!dateString.includes('T') && !dateString.includes(' ')) {
+      fullDateString = dateString + 'T00:00:00+10:00';
+    }
+    
+    const sydneyDate = new Date(fullDateString);
     const options = { 
       year: 'numeric', 
       month: 'long', 
@@ -527,19 +632,50 @@ document.addEventListener('DOMContentLoaded', () => {
       timeZone: 'Australia/Sydney'
     };
     
-    return date.toLocaleString('en-AU', options);
+    return sydneyDate.toLocaleString('en-AU', options);
   }
   
-  // Helper function to format time only using Sydney timezone
-  function formatTime(dateString) {
-    const date = new Date(dateString);
-    const options = { 
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Australia/Sydney'
-    };
+  // Helper function to format delivery date
+  function formatDeliveryDate(dateString) {
+    if (!dateString) return 'N/A';
     
-    return date.toLocaleString('en-AU', options);
+    try {
+      // If it's already in YYYY-MM-DD format
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return formatDateForDisplay(dateString);
+      }
+      
+      // If it's in YYYY/MM/DD format
+      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(dateString)) {
+        const parts = dateString.split('/');
+        const formattedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        return formatDateForDisplay(formattedDate);
+      }
+      
+      // If it's in DD/MM/YYYY format
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+        const parts = dateString.split('/');
+        const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        return formatDateForDisplay(formattedDate);
+      }
+      
+      // If it's a full date string, convert to YYYY-MM-DD in Sydney timezone
+      const sydneyDate = new Date(dateString + (dateString.includes('T') ? '' : 'T00:00:00+10:00'));
+      if (!isNaN(sydneyDate.getTime())) {
+        // Format to YYYY-MM-DD in Sydney timezone
+        const year = sydneyDate.toLocaleString('en-AU', { year: 'numeric', timeZone: 'Australia/Sydney' });
+        const month = sydneyDate.toLocaleString('en-AU', { month: '2-digit', timeZone: 'Australia/Sydney' });
+        const day = sydneyDate.toLocaleString('en-AU', { day: '2-digit', timeZone: 'Australia/Sydney' });
+        const formattedDate = `${year}-${month}-${day}`;
+        return formatDateForDisplay(formattedDate);
+      }
+      
+      // If all else fails, return the original string
+      return dateString;
+    } catch (e) {
+      console.error(`Error formatting delivery date: ${dateString}`, e);
+      return dateString || 'N/A';
+    }
   }
   
   // Event listeners

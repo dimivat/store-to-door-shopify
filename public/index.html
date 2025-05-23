@@ -22,6 +22,7 @@
                 <div class="tabs">
                     <div class="tab active" data-tab="order-retrieval">Order Retrieval</div>
                     <div class="tab" data-tab="calendar-view">Order Date</div>
+                    <div class="tab" data-tab="delivery-date">Delivery Date</div>
                 </div>
             </div>
             
@@ -133,6 +134,84 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Delivery Date Tab -->
+                <div class="tab-pane" id="delivery-tab">
+                    <div class="calendar-container">
+                        <div class="calendar-header">
+                            <h2>Delivery Date Calendar</h2>
+                            <p>Select a date to view orders scheduled for delivery</p>
+                        </div>
+                        
+                        <div class="date-picker-container">
+                            <input type="text" id="delivery-date-picker" placeholder="Select Delivery Date..." readonly>
+                        </div>
+                        
+                        <div class="selected-date-info">
+                            <h3 id="delivery-date-heading">No Date Selected</h3>
+                            <div class="date-summary">
+                                <div class="summary-item">
+                                    <span class="summary-label">Orders:</span>
+                                    <span id="delivery-date-count" class="summary-value">0</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Total Value:</span>
+                                    <span id="delivery-date-total" class="summary-value">$0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Vendors:</span>
+                                    <span id="delivery-date-vendors" class="summary-value">0</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Items:</span>
+                                    <span id="delivery-date-items" class="summary-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Vendor Items Summary -->
+                        <div class="vendor-summary-container">
+                            <h3>Items by Vendor</h3>
+                            <div id="vendor-items-container">
+                                <table id="vendor-items-table" class="vendor-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Vendor</th>
+                                            <th>Item</th>
+                                            <th>SKU</th>
+                                            <th>Quantity</th>
+                                            <th>Orders</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="vendor-items-body">
+                                        <!-- Vendor items will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Delivery Orders Table -->
+                        <div class="orders-table-container">
+                            <h3>Orders for Delivery</h3>
+                            <table id="delivery-orders-table" class="orders-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Delivery Date</th>
+                                        <th>Status</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="delivery-orders-body">
+                                    <!-- Delivery orders will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Order Details Drawer -->
@@ -157,5 +236,6 @@
     
     <script src="app.js"></script>
     <script src="calendar.js"></script>
+    <script src="delivery.js"></script>
 </body>
 </html>

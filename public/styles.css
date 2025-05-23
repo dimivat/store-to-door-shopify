@@ -846,6 +846,70 @@ main {
   color: #383d41;
 }
 
+/* Vendor Items Table */
+.vendor-summary-container {
+  margin-bottom: 30px;
+}
+
+.vendor-summary-container h3 {
+  margin-bottom: 15px;
+  color: var(--primary-color);
+  font-size: 18px;
+  position: relative;
+}
+
+.vendor-summary-container h3::after {
+  content: '';
+  display: block;
+  width: 30px;
+  height: 3px;
+  background-color: var(--primary-color);
+  margin-top: 5px;
+}
+
+.vendor-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vendor-items-table thead {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.vendor-items-table th {
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.vendor-items-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--medium-gray);
+}
+
+.vendor-items-table tbody tr:hover {
+  background-color: var(--light-gray);
+}
+
+.vendor-items-table tbody tr.vendor-header {
+  background-color: #f0f7ff;
+  font-weight: 500;
+}
+
+.vendor-items-table .quantity-cell {
+  font-weight: 700;
+  text-align: center;
+}
+
+.vendor-items-table .orders-cell {
+  text-align: center;
+}
+
 /* Footer */
 footer {
   text-align: center;
