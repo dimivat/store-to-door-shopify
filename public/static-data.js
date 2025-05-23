@@ -1,9 +1,13 @@
 // Static data for the Store To Door application
 // This file provides mock data for demonstration purposes when the app is deployed as a static site
 
+console.log('Static data script loaded');
+
 const STATIC_DATA = {
   // Sample orders for demonstration
   orders: {
+    // Make sure to use the exact format expected by the calendar.js file
+    // Each date should have an object with 'orders' array property
     "2025-05-24": {
       date: "2025-05-24",
       totalOrders: 3,
