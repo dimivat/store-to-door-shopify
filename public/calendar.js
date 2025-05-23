@@ -57,8 +57,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  // Load orders for a specific date
-  async function loadOrdersForDate(date) {
+  // Function to set loading state
+  function setLoading(isLoading) {
+    if (isLoading) {
+      // Show loading state
+      selectedDateHeading.textContent = `Loading orders...`;
+      selectedDateCount.textContent = '';
+      selectedDateTotal.textContent = '$0.00';
+      selectedDateAvg.textContent = '$0.00';
+      selectedDateItems.textContent = '0';
+      ordersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+    }
+  }
+  
+  // Function to fetch orders for a specific date
+  async function fetchOrdersForDate(date) {
     try {
       setLoading(true);
       
@@ -76,13 +89,19 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Using static data for date:', date);
         
         // Get orders from static data if available
-        const staticOrders = STATIC_DATA.orders[date]?.orders || [];
-        
-        // Cache the results
-        cachedDates[date] = staticOrders;
-        
-        // Display the orders
-        displayOrdersForDate(date, staticOrders);
+        if (STATIC_DATA && STATIC_DATA.orders && STATIC_DATA.orders[date]) {
+          const staticOrders = STATIC_DATA.orders[date].orders || [];
+          console.log('Static orders found:', staticOrders);
+          
+          // Cache the results
+          cachedDates[date] = staticOrders;
+          
+          // Display the orders
+          displayOrdersForDate(date, staticOrders);
+        } else {
+          console.log('No static data found for date:', date);
+          displayOrdersForDate(date, []);
+        }
         return;
       }
       
@@ -112,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         displayOrdersForDate(date, staticOrders);
       } else {
         showAlert('error', `Error fetching orders: ${error.message}`);
+        displayOrdersForDate(date, []);
       }
     } finally {
       setLoading(false);
@@ -121,14 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load orders for a specific date
   async function loadOrdersForDate(date) {
     try {
-      // Show loading state
-      selectedDateHeading.textContent = `Loading orders for ${formatDateForDisplay(date)}...`;
-      selectedDateCount.textContent = '';
-      selectedDateTotal.textContent = '$0.00';
-      selectedDateAvg.textContent = '$0.00';
-      selectedDateItems.textContent = '0';
-      ordersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
-      
+      // Fetch the orders
       await fetchOrdersForDate(date);
       
     } catch (error) {
@@ -139,84 +152,89 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
-  // Display orders for the selected date
+  // Function to display orders for a specific date
   function displayOrdersForDate(date, orders) {
-    // Format the date for display
-    const formattedDate = formatDateForDisplay(date);
-    
     // Update the heading
-    selectedDateHeading.textContent = formattedDate;
+    selectedDateHeading.textContent = `Orders for ${formatDateForDisplay(date)}`;
     
-    // Calculate summary statistics
-    const orderCount = orders.length;
-    let totalValue = 0;
+    // Make sure orders is an array
+    const orderArray = Array.isArray(orders) ? orders : [];
+    console.log('Displaying orders:', orderArray);
+    
+    // Calculate totals
+    const totalOrders = orderArray.length;
+    let totalAmount = 0;
     let totalItems = 0;
     
-    orders.forEach(order => {
-      totalValue += parseFloat(order.totalPrice || 0);
-      totalItems += order.lineItems.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+    orderArray.forEach(order => {
+      // Make sure we have valid data
+      if (order && order.total_price) {
+        totalAmount += parseFloat(order.total_price);
+      }
+      
+      // Make sure line_items exists and is an array
+      if (order && order.line_items && Array.isArray(order.line_items)) {
+        totalItems += order.line_items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      }
     });
     
-    const avgOrderValue = orderCount > 0 ? totalValue / orderCount : 0;
-    
-    // Update summary information
-    document.getElementById('selected-date-count').textContent = orderCount;
-    document.getElementById('selected-date-total').textContent = formatCurrency(totalValue, orders.length > 0 ? orders[0].currency : 'USD');
-    document.getElementById('selected-date-avg').textContent = formatCurrency(avgOrderValue, orders.length > 0 ? orders[0].currency : 'USD');
-    document.getElementById('selected-date-items').textContent = totalItems;
+    // Update the summary
+    selectedDateCount.textContent = totalOrders;
+    selectedDateTotal.textContent = formatCurrency(totalAmount);
+    selectedDateAvg.textContent = totalOrders > 0 ? formatCurrency(totalAmount / totalOrders) : '$0.00';
+    selectedDateItems.textContent = totalItems;
     
     // Clear the table body
     ordersTableBody.innerHTML = '';
     
-    // If no orders, show a message
-    if (orders.length === 0) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="7" class="no-orders">No orders for this date</td>`;
-      ordersTableBody.appendChild(row);
-      return;
-    }
-    
-    // Sort orders by created time (newest first)
-    orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
     // Add each order to the table
-    orders.forEach(order => {
-      const row = document.createElement('tr');
-      
-      // Format the customer name
-      const customer = order.customer || {};
-      const customerName = customer.firstName && customer.lastName 
-        ? `${customer.firstName} ${customer.lastName}`
-        : 'Guest Customer';
-      
-      // Format the time
-      const time = formatTime(order.createdAt);
-      
-      // Format the status badges
-      const financialStatus = `<span class="status-badge status-${order.financialStatus}">${order.financialStatus || 'unknown'}</span>`;
-      const fulfillmentStatus = `<span class="status-badge status-${order.fulfillmentStatus || 'unfulfilled'}">${order.fulfillmentStatus || 'unfulfilled'}</span>`;
-      const status = `${financialStatus} ${fulfillmentStatus}`;
-      
-      // Set the row HTML
-      row.innerHTML = `
-        <td>${order.name}</td>
-        <td>${time}</td>
-        <td>${customerName}</td>
-        <td>${status}</td>
-        <td>${order.lineItems.length}</td>
-        <td>${formatCurrency(order.totalPrice, order.currency)}</td>
-        <td><button class="view-order-btn" data-order-id="${order.id}">View</button></td>
-      `;
-      
-      // Add the row to the table
-      ordersTableBody.appendChild(row);
-      
-      // Add event listener to the view button
-      const viewBtn = row.querySelector('.view-order-btn');
-      viewBtn.addEventListener('click', () => {
-        openOrderDetails(order);
+    if (!orderArray || orderArray.length === 0) {
+      ordersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">No orders for this date</td></tr>';
+    } else {
+      orderArray.forEach(order => {
+        if (!order) return; // Skip if order is undefined
+        
+        const row = document.createElement('tr');
+        
+        // Calculate total items safely
+        let itemCount = 0;
+        if (order.line_items && Array.isArray(order.line_items)) {
+          itemCount = order.line_items.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+        }
+        
+        // Get safe values with fallbacks
+        const orderNumber = order.name || order.order_number || 'N/A';
+        const customerName = order.customer && order.customer.first_name ? 
+          `${order.customer.first_name} ${order.customer.last_name || ''}` : 'Guest';
+        const createdAt = order.created_at || new Date().toISOString();
+        const totalPrice = order.total_price || '0.00';
+        const currency = order.currency || 'USD';
+        const status = order.fulfillment_status || 'Unfulfilled';
+        const orderId = order.id || '0';
+        
+        // Format the order data
+        row.innerHTML = `
+          <td>${orderNumber}</td>
+          <td>${customerName}</td>
+          <td>${formatTime(createdAt)}</td>
+          <td>${formatCurrency(totalPrice, currency)}</td>
+          <td>${itemCount}</td>
+          <td>${status}</td>
+          <td>
+            <button class="btn btn-sm btn-primary view-order-btn" data-order-id="${orderId}">View</button>
+          </td>
+        `;
+        
+        ordersTableBody.appendChild(row);
+        
+        // Add event listener to the view button
+        const viewBtn = row.querySelector('.view-order-btn');
+        viewBtn.addEventListener('click', () => {
+          // Call the openOrderDetails function with the order data
+          openOrderDetails(order);
+        });
       });
-    });
+    }
   }
   
   // Open order details drawer
@@ -244,54 +262,28 @@ document.addEventListener('DOMContentLoaded', () => {
           viewRawJsonBtn.textContent = 'Hide Raw JSON';
         } else {
           rawJsonContainer.style.display = 'none';
-          viewRawJsonBtn.textContent = 'View Raw JSON';
-        }
-      });
     }
     
-    // Show the drawer and overlay
-    orderDetailsDrawer.classList.add('open');
-    overlay.classList.add('active');
-  }
-  
-  // Close order details drawer
-  function closeOrderDetails() {
-    orderDetailsDrawer.classList.remove('open');
-    overlay.classList.remove('active');
-  }
-  
-  // Generate HTML for order details
-  function generateOrderDetailsHTML(order) {
-    // Format dates
-    const createdAt = formatDateTimeForDisplay(order.createdAt);
-    const processedAt = order.processedAt ? formatDateTimeForDisplay(order.processedAt) : 'N/A';
-    const updatedAt = order.updatedAt ? formatDateTimeForDisplay(order.updatedAt) : 'N/A';
-    const cancelledAt = order.cancelledAt ? formatDateTimeForDisplay(order.cancelledAt) : 'N/A';
+    console.log('Opening order details for:', order);
     
-    // Format customer
-    const customer = order.customer || {};
-    const customerName = customer.firstName && customer.lastName 
-      ? `${customer.firstName} ${customer.lastName}`
-      : 'Guest Customer';
+    const detailsDrawer = document.getElementById('order-details-drawer');
+    const orderTitle = document.getElementById('order-details-title');
+    const orderInfo = document.getElementById('order-details-info');
+    const orderItems = document.getElementById('order-details-items');
+    const closeBtn = document.getElementById('close-details-btn');
     
-    // Format addresses
-    const shippingAddress = formatAddress(order.shippingAddress);
-    const billingAddress = formatAddress(order.billingAddress);
+    // Get safe values with fallbacks
+    const orderNumber = order.name || order.order_number || 'N/A';
+    const customerName = order.customer && order.customer.first_name ? 
+      `${order.customer.first_name} ${order.customer.last_name || ''}` : 'Guest';
+    const createdAt = order.created_at || new Date().toISOString();
+    const totalPrice = order.total_price || '0.00';
+    const currency = order.currency || 'USD';
+    const financialStatus = order.financial_status || 'Unknown';
+    const fulfillmentStatus = order.fulfillment_status || 'Unfulfilled';
     
-    // Format line items
-    const lineItemsHTML = order.lineItems.map(item => `
-      <li class="order-item">
-        <div class="item-details">
-          <div class="item-title">${item.title}</div>
-          ${item.variant_title ? `<div class="item-variant">${item.variant_title}</div>` : ''}
-          ${item.sku ? `<div class="item-sku">SKU: ${item.sku}</div>` : ''}
-          ${item.vendor ? `<div class="item-vendor">Vendor: ${item.vendor}</div>` : ''}
-          ${item.product_id ? `<div class="item-product-id">Product ID: ${item.product_id}</div>` : ''}
-          ${item.variant_id ? `<div class="item-variant-id">Variant ID: ${item.variant_id}</div>` : ''}
-        </div>
-        <div class="item-price">
-          <div>${item.quantity} × ${formatCurrency(item.price, order.currency)}</div>
-          <div><strong>${formatCurrency(item.price * item.quantity, order.currency)}</strong></div>
+    // Set the order title
+    orderTitle.textContent = `Order ${orderNumber}`;
           ${item.total_discount > 0 ? `<div class="item-discount">Discount: -${formatCurrency(item.total_discount, order.currency)}</div>` : ''}
         </div>
       </li>

@@ -79,13 +79,38 @@ document.addEventListener('DOMContentLoaded', function() {
             const orders = STATIC_DATA.orders[date].orders || [];
             debugInfo(`Found ${orders.length} orders for query date ${date}`);
             
+            // Transform the orders to match the format expected by calendar.js
+            const transformedOrders = orders.map(order => {
+              // Keep the original order properties
+              return {
+                ...order,
+                // Add snake_case properties for compatibility
+                order_number: order.name,
+                total_price: order.totalPrice,
+                created_at: order.createdAt,
+                fulfillment_status: order.fulfillmentStatus || 'Unfulfilled',
+                financial_status: order.financialStatus || 'Unknown',
+                line_items: order.lineItems ? order.lineItems.map(item => ({
+                  ...item,
+                  // Add snake_case properties for compatibility
+                  variant_title: item.variantTitle || '',
+                })) : [],
+                // Transform customer format
+                customer: order.customer ? {
+                  ...order.customer,
+                  first_name: order.customer.firstName,
+                  last_name: order.customer.lastName
+                } : null
+              };
+            });
+            
             return {
               ok: true,
               status: 200,
               json: async () => ({
                 date,
-                totalOrders: orders.length,
-                orders: orders
+                totalOrders: transformedOrders.length,
+                orders: transformedOrders
               })
             };
           } else {
@@ -108,8 +133,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (url.includes('/api/orders/date/')) {
         const date = url.split('/').pop();
         console.log('Fetching static orders for date:', date);
+        debugInfo(`Fetching static orders for date: ${date}`);
         
-        // Get data from STATIC_DATA if available
         // Check if we have data for this date
         if (STATIC_DATA.orders[date]) {
           console.log('Found static data for date:', date);
@@ -121,17 +146,43 @@ document.addEventListener('DOMContentLoaded', function() {
           console.log('Static orders:', orders);
           debugInfo(`Found ${orders.length} orders for date ${date}`);
           
+          // Transform the orders to match the format expected by calendar.js
+          const transformedOrders = orders.map(order => {
+            // Keep the original order properties
+            return {
+              ...order,
+              // Add snake_case properties for compatibility
+              order_number: order.name,
+              total_price: order.totalPrice,
+              created_at: order.createdAt,
+              fulfillment_status: order.fulfillmentStatus || 'Unfulfilled',
+              financial_status: order.financialStatus || 'Unknown',
+              line_items: order.lineItems ? order.lineItems.map(item => ({
+                ...item,
+                // Add snake_case properties for compatibility
+                variant_title: item.variantTitle || '',
+              })) : [],
+              // Transform customer format
+              customer: order.customer ? {
+                ...order.customer,
+                first_name: order.customer.firstName,
+                last_name: order.customer.lastName
+              } : null
+            };
+          });
+          
           return {
             ok: true,
             status: 200,
             json: async () => ({
               date,
-              totalOrders: orders.length,
-              orders: orders
+              totalOrders: transformedOrders.length,
+              orders: transformedOrders
             })
           };
         } else {
           console.log('No static data found for date:', date);
+          debugInfo(`No static data found for date: ${date}`);
           // Return empty array if no data found
           return {
             ok: true,
@@ -148,12 +199,55 @@ document.addEventListener('DOMContentLoaded', function() {
       if (url.includes('/api/orders/delivery-date/')) {
         const date = url.split('/').pop();
         console.log('Fetching static delivery orders for date:', date);
+        debugInfo(`Fetching static delivery orders for date: ${date}`);
         
-        return {
-          ok: true,
-          status: 200,
-          json: async () => STATIC_DATA.orders[date] || { date, totalOrders: 0, orders: [] }
-        };
+        // Check if we have data for this date
+        if (STATIC_DATA.orders[date]) {
+          const orders = STATIC_DATA.orders[date].orders || [];
+          debugInfo(`Found ${orders.length} delivery orders for date ${date}`);
+          
+          // Transform the orders to match the format expected by delivery.js
+          const transformedOrders = orders.map(order => {
+            // Keep the original order properties
+            return {
+              ...order,
+              // Add snake_case properties for compatibility
+              order_number: order.name,
+              total_price: order.totalPrice,
+              created_at: order.createdAt,
+              fulfillment_status: order.fulfillmentStatus || 'Unfulfilled',
+              financial_status: order.financialStatus || 'Unknown',
+              line_items: order.lineItems ? order.lineItems.map(item => ({
+                ...item,
+                // Add snake_case properties for compatibility
+                variant_title: item.variantTitle || '',
+              })) : [],
+              // Transform customer format
+              customer: order.customer ? {
+                ...order.customer,
+                first_name: order.customer.firstName,
+                last_name: order.customer.lastName
+              } : null
+            };
+          });
+          
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              date,
+              totalOrders: transformedOrders.length,
+              orders: transformedOrders
+            })
+          };
+        } else {
+          debugInfo(`No static delivery data found for date: ${date}`);
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ date, totalOrders: 0, orders: [] })
+          };
+        }
       }
       
       if (url.includes('/api/orders/to-place/')) {
