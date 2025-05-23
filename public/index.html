@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store To Door - Order Retriever</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Store To Door - Order Retriever</h1>
+        </header>
+        
+        <main>
+            <div class="control-panel">
+                <div class="main-buttons">
+                    <button id="getOrdersBtn" class="primary-btn">Get Orders (Last 60 Days)</button>
+                    <button id="cancelBtn" class="danger-btn" disabled>Cancel</button>
+                </div>
+                <div class="cache-controls">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="useCache" checked>
+                        <span class="checkmark"></span>
+                        Use cached data when available
+                    </label>
+                    <button id="clearCacheBtn" class="secondary-btn">Clear Cache</button>
+                </div>
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <span>Fetching orders...</span>
+                </div>
+            </div>
+            
+            <div class="cache-info-panel" id="cacheInfoPanel">
+                <h3>Cache Status</h3>
+                <div class="cache-info-content">
+                    <p>Last updated: <span id="cacheLastUpdated">Never</span></p>
+                    <p>Days cached: <span id="cacheDaysCount">0</span></p>
+                </div>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <h3>Total Orders</h3>
+                    <p id="totalOrders">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Days Processed</h3>
+                    <p id="daysProcessed">0 / 60</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Current Day</h3>
+                    <p id="currentDay">-</p>
+                </div>
+            </div>
+            
+            <div class="alerts-panel" id="alertsPanel"></div>
+            
+            <div class="results-panel">
+                <h2>Daily Order Counts</h2>
+                <div class="daily-counts" id="dailyCounts"></div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 Store To Door</p>
+        </footer>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
