@@ -30,6 +30,40 @@ A web-based application that connects to the Store To Door Shopify store and ret
 
 ## Usage
 
+1. Start the application with `npm start`
+2. Open your browser and navigate to `http://localhost:3001`
+3. Enter the password 'james' to access the application
+4. Use the calendar to select a date and view orders
+
+## Deployment to Netlify
+
+### Automatic Deployment (Recommended)
+
+1. Fork this repository to your GitHub account
+2. Sign up for a Netlify account at [netlify.com](https://www.netlify.com/)
+3. Click "New site from Git" in the Netlify dashboard
+4. Select your GitHub repository
+5. Configure the build settings:
+   - Build command: `npm run build`
+   - Publish directory: `public`
+6. Add the following environment variables in the Netlify dashboard:
+   - `SHOPIFY_SHOP`: store-to-door-au.myshopify.com
+   - `SHOPIFY_ADMIN_ACCESS_TOKEN`: your_access_token
+   - `SHOPIFY_API_VERSION`: 2023-07
+7. Click "Deploy site"
+
+### Manual Deployment
+
+1. Install the Netlify CLI: `npm install -g netlify-cli`
+2. Build the site: `npm run build`
+3. Login to Netlify: `netlify login`
+4. Deploy the site: `netlify deploy --prod`
+5. Set environment variables using the Netlify dashboard
+
+### Accessing the Deployed Site
+
+After deployment, you can access your site at the URL provided by Netlify. The site is password protected with the password 'james'.
+
 Start the server with:
 
 ```bash

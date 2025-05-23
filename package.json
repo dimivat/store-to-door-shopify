@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "mkdir -p functions && cp server.js functions/api.js && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -19,9 +20,11 @@
     "express": "^4.21.2",
     "graphql": "^16.11.0",
     "graphql-request": "^7.1.2",
+    "serverless-http": "^3.2.0",
     "shopify-api-node": "^3.15.0"
   },
   "devDependencies": {
+    "netlify-cli": "^21.5.0",
     "nodemon": "^3.1.10"
   }
 }
