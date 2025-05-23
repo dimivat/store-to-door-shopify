@@ -65,6 +65,46 @@ document.addEventListener('DOMContentLoaded', function() {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // Handle different API endpoints
+      // Handle /api/orders?date= format (used by calendar)
+      if (url.includes('/api/orders') && url.includes('date=')) {
+        // Extract date from URL query parameter
+        const dateMatch = url.match(/date=([^&]+)/);
+        if (dateMatch && dateMatch[1]) {
+          const date = dateMatch[1];
+          debugInfo(`Fetching static orders for query date: ${date}`);
+          
+          // Check if we have data for this date
+          if (STATIC_DATA.orders[date]) {
+            debugInfo(`Found static data for query date: ${date}`);
+            const orders = STATIC_DATA.orders[date].orders || [];
+            debugInfo(`Found ${orders.length} orders for query date ${date}`);
+            
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                date,
+                totalOrders: orders.length,
+                orders: orders
+              })
+            };
+          } else {
+            debugInfo(`No static data found for query date: ${date}`);
+            // Return empty array if no data found
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                date,
+                totalOrders: 0,
+                orders: []
+              })
+            };
+          }
+        }
+      }
+      
+      // Handle /api/orders/date/ format
       if (url.includes('/api/orders/date/')) {
         const date = url.split('/').pop();
         console.log('Fetching static orders for date:', date);
