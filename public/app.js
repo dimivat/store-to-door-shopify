@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load cache information
   async function loadCacheInfo() {
     try {
-      const response = await fetch(formatApiUrl('/api/cache/info'));
+      const response = await fetchData(formatApiUrl('/api/cache/info'));
       if (!response.ok) {
         throw new Error('Failed to fetch cache info');
       }
@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       setLoading(true);
       
-      const response = await fetch(formatApiUrl('/api/cache/clear'), {
+      const response = await fetchData(formatApiUrl('/api/cache/clear'), {
         method: 'POST'
       });
       

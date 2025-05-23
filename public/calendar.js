@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // Fetch orders from the server
-      const response = await fetch(formatApiUrl(`/api/orders/date/${date}`));
+      const response = await fetchData(formatApiUrl(`/api/orders/date/${date}`));
       
       if (!response.ok) {
         throw new Error(`Failed to fetch orders: ${response.statusText}`);
@@ -549,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check for cached dates on page load
   async function loadCachedDates() {
     try {
-      const response = await fetch(formatApiUrl('/api/cache/info'));
+      const response = await fetchData(formatApiUrl('/api/cache/info'));
       if (!response.ok) return;
       
       const data = await response.json();
