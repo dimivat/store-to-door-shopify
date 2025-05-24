@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     disableMobile: true,
     // Set timezone to Sydney/Australia
     timezone: 'Australia/Sydney',
-    // Use UTC+10 for Sydney timezone
+    // Force UTC+10 for Sydney timezone
     utc: true,
     // Disable Sunday selection since there are no orders on Sunday
     disable: [
@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ],
     onChange: function(selectedDates, dateStr) {
       if (selectedDates.length > 0) {
+        // Ensure the date is in Sydney timezone
+        console.log(`Selected delivery date in Sydney timezone: ${dateStr}`);
         // Make sure we're using the date string in YYYY-MM-DD format
         loadOrdersForDeliveryDate(dateStr);
       }

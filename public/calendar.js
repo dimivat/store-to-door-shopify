@@ -24,8 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
     disableMobile: true,
     // Set timezone to Sydney/Australia
     timezone: 'Australia/Sydney',
+    // Force UTC+10 for Sydney timezone
+    utc: true,
     onChange: function(selectedDates, dateStr) {
       if (selectedDates.length > 0) {
+        // Ensure the date is in Sydney timezone
+        console.log(`Selected date in Sydney timezone: ${dateStr}`);
         loadOrdersForDate(dateStr);
       }
     }

@@ -20,6 +20,33 @@ if (!SHOP_NAME || !ACCESS_TOKEN || !API_VERSION) {
   process.exit(1);
 }
 
+// Helper function to convert dates to Sydney timezone (UTC+10)
+function toSydneyTime(date) {
+  // Create a date object
+  const d = new Date(date);
+  
+  // Convert to Sydney timezone (UTC+10)
+  // This is a simplified approach - for production, consider using a library like moment-timezone
+  const sydneyOffset = 10 * 60 * 60 * 1000; // 10 hours in milliseconds
+  const utcTime = d.getTime() + (d.getTimezoneOffset() * 60 * 1000);
+  const sydneyTime = new Date(utcTime + sydneyOffset);
+  
+  return sydneyTime;
+}
+
+// Helper function to format a date as YYYY-MM-DD in Sydney timezone
+function formatDateSydney(date) {
+  const sydneyDate = toSydneyTime(date);
+  const year = sydneyDate.getFullYear();
+  const month = String(sydneyDate.getMonth() + 1).padStart(2, '0');
+  const day = String(sydneyDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Log the current time in Sydney timezone for reference
+console.log(`Server started. Current Sydney time: ${formatDateSydney(new Date())}`);
+
+
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -222,6 +249,10 @@ app.post('/api/cache/clear', (req, res) => {
 
 // API endpoint to get orders by delivery date (from note attributes)
 app.get('/api/orders/delivery-date/:date', async (req, res) => {
+  // Log the request with Sydney timezone info
+  console.log(`Delivery date request received for date: ${req.params.date}`);
+  console.log(`Current Sydney time: ${formatDateSydney(new Date())}`);
+  
   try {
     const { date } = req.params;
     const useCache = req.query.refresh !== 'true';
@@ -270,6 +301,10 @@ app.get('/api/orders/delivery-date/:date', async (req, res) => {
     const allOrders = response.data.orders;
     console.log(`Filtering ${allOrders.length} orders for delivery date: ${date}`);
     
+    // Log server timezone information
+    console.log(`Server timezone: ${new Date().toString()}`);
+    console.log(`Target date: ${date}, parsed as: ${new Date(date).toISOString()}`);
+    
     // Log all delivery dates found in orders
     console.log('All delivery dates in orders:');
     allOrders.forEach(order => {
@@ -299,6 +334,7 @@ app.get('/api/orders/delivery-date/:date', async (req, res) => {
       console.log(`Checking order ${order.name} with delivery date: ${deliveryAttr.value} against target: ${date}`);
       
       // Parse the delivery date value and check if it matches our target date
+      // Normalize the date for comparison - strip out time components and compare only YYYY-MM-DD
       let orderDeliveryDate = deliveryAttr.value;
       
       // Try to standardize the date format
