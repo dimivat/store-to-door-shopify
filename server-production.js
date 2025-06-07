@@ -9,12 +9,12 @@ const https = require('https');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Ensure cache directory is created on startup
-ensureCacheDirectory();
-
 // Path to the cache directory
 const CACHE_DIR = process.env.CACHE_DIR || path.join(process.env.HOME || __dirname, 'cache');
 const ORDER_CACHE_FILE = path.join(CACHE_DIR, 'orders-cache.json');
+
+// Ensure cache directory is created on startup
+ensureCacheDirectory();
 
 // Shopify store configuration from environment variables
 const SHOP_NAME = process.env.SHOPIFY_SHOP;
@@ -336,9 +336,43 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'store-to-door-integrated' });
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.stack);
+  res.status(500).json({ 
+    error: 'Internal Server Error',
+    message: err.message,
+    path: req.path
+  });
+});
+
+// Handle 404s
+app.use((req, res) => {
+  console.log('404 Not Found:', req.path);
+  res.status(404).json({ 
+    error: 'Not Found',
+    path: req.path
+  });
+});
+
 // Start the server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
+  console.log('Environment:', process.env.NODE_ENV || 'development');
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`Connected to Shopify store: ${SHOP_NAME}.myshopify.com`);
   console.log('Running in production mode with integrated order service');
+  console.log('Cache directory:', CACHE_DIR);
+}).on('error', (err) => {
+  console.error('Server failed to start:', err);
+  process.exit(1);
 });
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
