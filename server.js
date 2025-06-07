@@ -1,8 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
 const path = require('path');
-const cache = require('./utils/cache');
+const axios = require('axios');
 
 // Initialize Express app
 const app = express();
@@ -23,214 +22,84 @@ if (!SHOP_NAME || !ACCESS_TOKEN || !API_VERSION) {
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API endpoint to fetch orders for a specific date
+// Proxy endpoint for orders - forwards requests to the isolated order service
 app.get('/api/orders', async (req, res) => {
   try {
-    const date = req.query.date;
-    const forceRefresh = req.query.refresh === 'true';
-    const startHour = req.query.startHour || '00';
-    const endHour = req.query.endHour || '23';
-    const timeChunk = req.query.timeChunk || 'full'; // 'full', 'first-half', 'second-half'
-    
-    if (!date) {
-      return res.status(400).json({ error: 'Date parameter is required' });
-    }
-    
-    // Generate cache key based on date and time chunk
-    const cacheKey = `${date}-${timeChunk}`;
-    
-    // Check cache first if not forcing refresh
-    if (!forceRefresh) {
-      const cachedData = cache.getCachedOrdersForDate(cacheKey);
-      if (cachedData) {
-        console.log(`Returning cached orders for date: ${date} (${timeChunk})`);
-        return res.json({
-          date,
-          timeChunk,
-          count: cachedData.count,
-          hasMaxLimit: cachedData.hasMaxLimit,
-          orders: cachedData.orders,
-          fromCache: true
-        });
-      }
-    }
-    
-    // Parse time chunk information
-    let startTime, endTime, chunkDescription;
-    
-    // Check if the timeChunk is a custom time range in format 'HH:MM-HH:MM'
-    const customTimeRangeRegex = /^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/;
-    const customTimeMatch = timeChunk.match(customTimeRangeRegex);
-    
-    if (customTimeMatch) {
-      // Custom time range in format 'HH:MM-HH:MM'
-      const [_, startHour, startMinute, endHour, endMinute] = customTimeMatch;
-      startTime = `${date}T${startHour}:${startMinute}:00+10:00`;
-      endTime = `${date}T${endHour}:${endMinute}:59+10:00`;
-      chunkDescription = `custom range (${startHour}:${startMinute}-${endHour}:${endMinute})`;
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    } else if (timeChunk === 'first-half') {
-      startTime = `${date}T00:00:00+10:00`;
-      endTime = `${date}T11:59:59+10:00`;
-      chunkDescription = 'first half of day (00:00-11:59)';
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    } else if (timeChunk === 'second-half') {
-      startTime = `${date}T12:00:00+10:00`;
-      endTime = `${date}T23:59:59+10:00`;
-      chunkDescription = 'second half of day (12:00-23:59)';
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    } else if (timeChunk === 'morning') {
-      startTime = `${date}T00:00:00+10:00`;
-      endTime = `${date}T05:59:59+10:00`;
-      chunkDescription = 'morning (00:00-05:59)';
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    } else if (timeChunk === 'business-hours') {
-      startTime = `${date}T06:00:00+10:00`;
-      endTime = `${date}T17:59:59+10:00`;
-      chunkDescription = 'business hours (06:00-17:59)';
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    } else if (timeChunk === 'evening') {
-      startTime = `${date}T18:00:00+10:00`;
-      endTime = `${date}T23:59:59+10:00`;
-      chunkDescription = 'evening (18:00-23:59)';
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    } else {
-      // Default to full day
-      startTime = `${date}T${startHour}:00:00+10:00`;
-      endTime = `${date}T${endHour}:59:59+10:00`;
-      chunkDescription = `full day (${startHour}:00-${endHour}:59)`;
-      console.log(`Fetching ${chunkDescription} orders from Shopify API for date: ${date}`);
-    }
-    
-    console.log(`Time range: ${startTime} to ${endTime}`);
-    
-    // For debugging, log the API request details
-    const requestParams = {
-      url: `https://${SHOP_NAME}.myshopify.com/admin/api/${API_VERSION}/orders.json`,
-      method: 'GET',
-      headers: {
-        'X-Shopify-Access-Token': ACCESS_TOKEN,
-        'Content-Type': 'application/json'
-      },
-      params: {
-        created_at_min: startTime,
-        created_at_max: endTime,
-        status: 'any',
-        limit: 50
-      }
-    };
-    
-    console.log('API Request:', JSON.stringify(requestParams, null, 2));
-    
-    // Fetch orders from Shopify
+    // Forward the request to the order service
+    const orderServiceUrl = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
     const response = await axios({
-      url: `https://${SHOP_NAME}.myshopify.com/admin/api/${API_VERSION}/orders.json`,
+      url: `${orderServiceUrl}/api/orders`,
       method: 'GET',
-      headers: {
-        'X-Shopify-Access-Token': ACCESS_TOKEN,
-        'Content-Type': 'application/json'
-      },
-      params: {
-        created_at_min: startTime,
-        created_at_max: endTime,
-        status: 'any',
-        limit: 50
-      }
+      params: req.query
     });
     
-    const orders = response.data.orders;
-    console.log(`Found ${orders.length} orders for ${date} (${timeChunk})`);
-    
-    // Check if we hit the limit
-    const hitLimit = orders.length >= 50;
-    if (hitLimit) {
-      console.log(`⚠️ WARNING: Hit the 50 order limit for ${date} (${timeChunk})`);
-    }
-    
-    // Log order timestamps to verify time filtering is working
-    if (orders.length > 0) {
-      console.log('First order timestamp:', orders[0].created_at);
-      console.log('Last order timestamp:', orders[orders.length - 1].created_at);
-    }
-    
-    // Prepare response data
-    const responseData = {
-      date,
-      timeChunk,
-      count: orders.length,
-      hasMaxLimit: orders.length >= 50,
-      fromCache: false,
-      orders: orders.map(order => ({
-        id: order.id,
-        name: order.name,
-        createdAt: order.created_at,
-        status: order.financial_status,
-        total: order.total_price
-      }))
-    };
-    
-    // Log the response summary
-    console.log(`Response summary for ${date} (${timeChunk}):`, {
-      count: responseData.count,
-      hasMaxLimit: responseData.hasMaxLimit,
-      timeChunk: responseData.timeChunk
-    });
-    
-    // Save to cache
-    cache.saveOrdersToCache(cacheKey, {
-      count: responseData.count,
-      hasMaxLimit: responseData.hasMaxLimit,
-      orders: responseData.orders,
-      fetchedAt: new Date().toISOString()
-    });
-    
-    return res.json(responseData);
-    
+    // Return the response from the order service
+    return res.json(response.data);
   } catch (error) {
-    console.error('API Error:', error.message);
+    console.error('Error proxying to order service:', error.message);
     
     if (error.response) {
-      console.error('Response Status:', error.response.status);
-      console.error('Response Data:', error.response.data);
-      
       return res.status(error.response.status).json({
-        error: `Shopify API Error: ${error.response.status}`,
+        error: `Order Service Error: ${error.response.status}`,
         details: error.response.data
       });
     }
     
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      error: 'Internal server error', 
+      message: 'Failed to communicate with order service. Make sure the order service is running.'
+    });
   }
 });
 
-// API endpoint to get cache metadata
-app.get('/api/cache/info', (req, res) => {
+// Proxy endpoint for cache info - forwards requests to the isolated order service
+app.get('/api/cache/info', async (req, res) => {
   try {
-    const metadata = cache.getCacheMetadata();
-    res.json(metadata);
+    const orderServiceUrl = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
+    const response = await axios.get(`${orderServiceUrl}/api/cache/info`);
+    res.json(response.data);
   } catch (error) {
-    console.error('Error getting cache info:', error);
-    res.status(500).json({ error: 'Failed to get cache info' });
+    console.error('Error getting cache info from order service:', error);
+    res.status(500).json({ error: 'Failed to get cache info from order service' });
   }
 });
 
-// API endpoint to clear the cache
-app.post('/api/cache/clear', (req, res) => {
+// Proxy endpoint for clearing cache - forwards requests to the isolated order service
+app.post('/api/cache/clear', async (req, res) => {
   try {
-    const success = cache.clearCache();
-    if (success) {
-      res.json({ message: 'Cache cleared successfully' });
-    } else {
-      res.status(500).json({ error: 'Failed to clear cache' });
-    }
+    const orderServiceUrl = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
+    const response = await axios.post(`${orderServiceUrl}/api/cache/clear`);
+    res.json(response.data);
   } catch (error) {
-    console.error('Error clearing cache:', error);
-    res.status(500).json({ error: 'Failed to clear cache' });
+    console.error('Error clearing cache in order service:', error);
+    res.status(500).json({ error: 'Failed to clear cache in order service' });
+  }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'main-application' });
+});
+
+// Order service health check endpoint
+app.get('/api/order-service/health', async (req, res) => {
+  try {
+    const orderServiceUrl = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
+    const response = await axios.get(`${orderServiceUrl}/health`);
+    res.json({ status: 'ok', orderServiceStatus: response.data });
+  } catch (error) {
+    console.error('Order service health check failed:', error);
+    res.status(503).json({ 
+      status: 'error', 
+      error: 'Order service is not available',
+      message: 'Please make sure the order service is running on the configured URL'
+    });
   }
 });
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Main Application running at http://localhost:${PORT}`);
   console.log(`Connected to Shopify store: ${SHOP_NAME}.myshopify.com`);
+  console.log(`Using Order Service at: ${process.env.ORDER_SERVICE_URL || 'http://localhost:3002'}`);
 });
